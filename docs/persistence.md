@@ -1,0 +1,146 @@
+# Persisting `work/` & evolving the definition
+
+Read this file when you need the details behind the end-of-run backup, when the owner
+asks to update the agent or check its version, or when they ask for a change to the agent
+definition itself.
+
+## Two stores: shared live state + durable backup
+
+| Path | Kind | Holds |
+| --- | --- | --- |
+| `/home/agent` (outer) | git repo, remote `$DEFINITION_REPO` (`origin`) | Definition: `CLAUDE.md`, `AGENTS.md`, `ONBOARDING.md`, `README.md`, `docs/`, `scripts/`, `VERSION`, `CHANGELOG.md`, `.gitignore`, `LICENSE`. |
+| `/home/agent/work` | **plain data directory** (no `.git`) | Live runtime state. Shared across concurrent runs; the source of truth. |
+| `$GITHUB_REPO_WORK` | git remote | Durable, versioned **backup** of `work/`. Written only via a disposable tmpfs clone (below). |
+
+`work/` is **never** a git repo: the home volume is virtiofs over NFS, and a `.git`
+mutated there under concurrent runs produces `Stale file handle` (ESTALE) and `.nfs*`
+silly-rename corruption. All git plumbing happens off the shared volume, in a tmpfs
+clone under `/dev/shm`; `work/` itself is only ever read.
+
+The outer `.gitignore` is an allowlist (`/*` then re-include the definition files), so
+**all** of `work/` and the HOME secrets (`.ssh`, `.claude`, `.config`) are invisible to
+the outer repo. A fresh volume seeds state files from the templates in `ONBOARDING.md`
+or restores them from the backup remote; a definition update (fast-forward, or a hard
+reset when the checkout diverged) never collides with live runtime state. **Never run
+`git clean` in `/home/agent`** and never `git add` outside the allowlist (the backup's
+`git add -A` is confined to the tmpfs clone, never the home tree).
+
+## Backup & restore (`scripts/work-backup.sh`)
+
+Pre-flight scripts never commit or push — their local bookkeeping is written straight to
+the `work/` files and stays on the volume until backed up. At the end of every run where
+the agent did work, as the very last action and only when `$GITHUB_REPO_WORK` is set:
+
+```bash
+LOG_JOB=<mode> bash "$HOME/scripts/work-backup.sh" persist
+```
+
+The script (full rationale in its header) snapshots the current `work/` files into a
+**disposable tmpfs clone**, commits, and pushes. Nothing authoritative lives on tmpfs —
+live state is `work/`, history is the remote, and the clone is re-seeded whenever
+missing or broken, so a pod restart wiping `/dev/shm` never matters. The persist step is
+serialized by a mkdir lock next to the clone (lock-or-skip: a skipped persist is safe —
+the running one snapshots the same shared `work/` moments later, and the next run sweeps
+up any remainder); a rejected non-fast-forward push re-seeds from the new remote tip and
+retries with a fresh snapshot. Never force-push; a push that fails all retries is logged
+and retried next run — not a run failure, because the data is safe on `work/`.
+
+**The backup remote holds one person's tasks, notes, and preferences.** It must be a
+**private** repository owned by the same person or their organization, and it is the only
+place `work/` data ever leaves the agent besides the owner's own channel (`CLAUDE.md` →
+**Hard invariants**). Without `$GITHUB_REPO_WORK` the state lives on the volume alone —
+durable across pod restarts, lost with the volume, and not reconstructable from anywhere:
+nothing here mirrors the owner's list into an external system.
+
+`restore` is the inverse — remote → `work/` (data only, never a `.git`) — run once on a
+fresh volume (`ONBOARDING.md` Step 2a).
+
+## Definition version & upgrade
+
+`VERSION` (repo root, one line, semver) identifies the definition; `work/VERSION` is the
+version this instance last adopted (missing = `1.0.0`). Scheduled runs never touch
+versioning (the weekly audit only *reports* drift); acting happens **in the direct
+session only**: an owner-requested update or version check, and always before any
+self-modification (self-modification.md §8).
+
+**Check:**
+
+```bash
+git -C /home/agent fetch -q origin main
+git -C /home/agent show origin/main:VERSION 2>/dev/null | head -1   # latest
+head -1 /home/agent/VERSION                                         # checked out
+head -1 /home/agent/work/VERSION 2>/dev/null                        # adopted
+```
+
+Checked-out < latest → **tell the owner the agent is not up to date** (state both
+versions); update only when they ask, never silently, then migrate in the same session.
+Adopted ≠ checked-out → migrate now. All equal → report "up to date".
+
+Update a clean checkout by **fast-forward** — it reaches the same commit without
+discarding anything, so it also passes an auto-mode guard that refuses destructive
+commands:
+
+```bash
+git -C /home/agent status --porcelain          # must be empty; otherwise stop and ask
+git -C /home/agent merge --ff-only origin/main \
+  || git -C /home/agent reset --hard origin/main   # only when the checkout diverged
+```
+
+The fallback is for a diverged checkout (a platform reset, an abandoned local commit) —
+it discards, so surface that it was needed. **Never `git clean`.**
+
+**Migration** (`from` = adopted, `to` = checked-out):
+
+1. Apply the `CHANGELOG.md` **Upgrade** blocks of every version in `(from, to]`, oldest
+   first. Steps are idempotent (check before create), so re-running a partial attempt is
+   safe; an owner-only step is surfaced, never guessed at.
+2. **Offer every optional feature the crossed versions add.** An **Upgrade** block that
+   introduces an off-by-default feature names the `work/CONFIG.md` key that enables it
+   and its one-line effect (self-modification.md §12); upgrading never adopts it by
+   itself. Collect them across all crossed versions and ask the owner **once, in one
+   message**. A yes writes that key; a no or no answer writes nothing — the missing key
+   is the documented off default — and the migration continues either way. Never enable
+   a feature the owner did not confirm.
+3. Only after every applicable step succeeded, write `to` into `work/VERSION` and log
+   `definition upgraded <from> → <to> (<n> step(s))`, naming the features offered and
+   the answers. A failed step: log + tell the owner, leave `work/VERSION` unchanged
+   (re-offered at the next check).
+4. Rollback (`to` < `from`) → apply nothing, offer nothing; just write `to`.
+
+Whenever an upgrade changes what onboarding produces, its **Upgrade** block runs
+`bash "$HOME/scripts/verify-onboarding.sh"` and applies every `FAIL` line's `fix:` — the
+same verification onboarding ends with, and the only thing that keeps a long-deployed
+instance the same shape as a fresh one.
+
+Back up `work/` afterwards (section above).
+
+## Evolving the agent definition (outer repo)
+
+**First read [self-modification.md](self-modification.md)** — it defines the rules every
+definition change must obey.
+
+The repo reference is `$DEFINITION_REPO` when the session exported it, otherwise
+`definition_repo` from `work/CONFIG.md` ([config.md](config.md)) — a scheduled shell has no
+exports.
+
+Definition changes go through **branch + PR on that repo — never a direct push
+to `main`, never auto-merge**, and only when deliberately asked — never as part of a
+scheduled run:
+
+```bash
+git -C /home/agent fetch origin main
+git -C /home/agent checkout -b "fix/<short-slug>" origin/main
+git -C /home/agent add -- CLAUDE.md AGENTS.md ONBOARDING.md README.md VERSION CHANGELOG.md .gitignore LICENSE docs scripts .github
+git -C /home/agent commit -m "<describe the change>"
+git -C /home/agent push -u origin "fix/<short-slug>"
+gh pr create --repo "$DEFINITION_REPO" --base main --head "fix/<short-slug>" \
+  --title "<title>" --body "<what and why>"
+```
+
+The agent's job ends at "PR opened". Use fresh descriptive branch names; runtime state
+never goes to this repo.
+
+The definition repo may sit on a different host than the systems the agent works on, so
+**every definition-repo call names its host** — `-R "$DEF_HOST/$DEFINITION_REPO"` for
+`gh pr`/`gh issue`, `--hostname "$DEF_HOST"` for `gh api`. The outer-repo `origin` URL
+already carries it, so plain `git fetch`/`push` need nothing extra.
