@@ -34,13 +34,15 @@ whose entries are per-version upgrade steps for already-deployed instances.
 
 Created from the **starter kit** ([`kit.yaml`](kit.yaml)), the platform does all of this:
 it asks for the connections, seeds this definition into the agent's home, registers the
-three schedules (the two opt-in ones disabled), and starts the agent on the runbook. Set
-`GITHUB_REPO_WORK` first if the state is to be backed up. By hand instead:
+three schedules, and starts the agent on the runbook. Set `GITHUB_REPO_WORK` first if the
+state is to be backed up. By hand instead:
 
 1. **Create the agent** on the DAM platform and grant it:
    - **Slack** (or **Telegram**) — the channel the owner talks to it in. Required.
    - **GitHub** — for the definition repo (self-update, PRs) and, optionally, the private
-     state-backup repo. Required.
+     state-backup repo. Recommended, not required: without it the agent serves its owner in
+     full but runs local-only ([docs/persistence.md](docs/persistence.md) → **Local-only
+     mode (no GitHub)**).
 2. **Set the environment variables** — see the table below.
 3. **Grab the link to [`ONBOARDING.md`](ONBOARDING.md)** — **from the repo (or fork) you
    actually deploy from**; the agent derives its definition repo from this URL, so a fork's
@@ -89,12 +91,12 @@ Filled interactively at onboarding. Exact per-key semantics: [docs/config.md](do
 - **Platform:** the DAM agent infrastructure — `$HOME` at `/home/agent` on a persistent
   volume, the platform's outbound auth proxy for tokens, and the `mcp__platform-outbound__*`
   tools for schedules and channel messages.
-- **Pod tooling:** `bash`, `git`, `gh`, `jq`, GNU `date`, `tar`. No `awk` (the scripts are
-  awk-free by design).
-- **Identity:** the agent acts as the account behind its token. The GitHub token needs
-  `repo`-level access to its own definition repo (read, and write to open PRs) and to the
-  private state-backup repo when one is configured — nothing else. It never needs access to
-  anything the owner works on.
+- **Pod tooling:** `bash`, `git`, `jq`, GNU `date`, `tar`, plus `gh` where GitHub is
+  granted. No `awk` (the scripts are awk-free by design).
+- **Identity:** the agent acts as the account behind its token. Where GitHub is granted, its
+  token needs `repo`-level access to its own definition repo (read, and write to open PRs)
+  and to the private state-backup repo when one is configured — nothing else. It never needs
+  access to anything the owner works on.
 - **External surfaces:** one. The owner's direct message conversation, and — when
   configured — the private backup repository. The agent posts nothing publicly, sends mail
   to nobody, and writes to no third system; a draft it writes is handed back, never

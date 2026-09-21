@@ -505,8 +505,10 @@ mode_audit() {
     dirty="$(num "$(printf '%s' "$status_out" | grep -c .)")"
     if [ "$dirty" -gt 0 ]; then check definition_clean fail "$dirty uncommitted path(s) in the definition checkout"
     else check definition_clean ok "definition checkout is clean"; fi
-  else
+  elif [ -n "$DEFINITION_REPO" ]; then
     check definition_clean fail "no git checkout at $HOME_DIR — the definition cannot be updated or verified"
+  else
+    check definition_clean warn "no git checkout at $HOME_DIR — local-only: no version check, no self-update, no definition PR"
   fi
   cur="$(head -1 "$HOME_DIR/VERSION" 2>/dev/null)"
   adopted="$(head -1 "$WORK/VERSION" 2>/dev/null)"
