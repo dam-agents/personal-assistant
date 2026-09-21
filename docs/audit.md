@@ -31,7 +31,7 @@ Do not recompute them by hand; read them.
 | `retention` | Housekeeping report: events files older than 14 days and `INBOX.log` lines older than 90 days removed. |
 | `memory_bounds` | `## Observed` over its cap ([preferences.md](preferences.md)). |
 | `disk` | `work/` is over the warn threshold, or usage could not be measured. |
-| `definition_clean` | `git -C $HOME status --porcelain` is not empty, or there is no checkout to read. |
+| `definition_clean` | `git -C $HOME status --porcelain` is not empty. No checkout to read is a `fail` when `definition_repo` is set, a `warn` in local-only mode ([persistence.md](persistence.md)). |
 | `version` | Checked out, latest, and adopted versions disagree. Drift is reported, never fixed here. |
 | `tool_shims` | A CLI still reaches through a `mise` shim ([logging.md](logging.md) → **Tool path resolution**). |
 | `tmp` | Leftover `/tmp/personal-assistant-*` directories. |
@@ -51,7 +51,8 @@ declined. Task counters come from the review's worklist, not from here.
    agent mistake, or definition bug ([logging.md](logging.md) → **Diagnosing a failure**).
    A verified environment cause goes to `work/LESSONS.md`; a definition bug becomes a
    deduplicated tracking issue on `definition_repo` (search open issues first) — the audit's
-   only external write.
+   only external write, and one local-only mode has no place for: there the diagnosis goes
+   to the owner instead ([persistence.md](persistence.md)).
 3. **Sample this week's messages** (about three, from the logs and the state they describe):
    did they go only to `owner_member_id`, did they honor `work/PERSONA.md`'s boundaries, did
    a declined request stay declined, is every task mentioned still in the state it claimed?

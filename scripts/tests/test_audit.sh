@@ -21,8 +21,15 @@ assert_eq fail  "$(printf '%s' "$out" | jq -r '.checks[] | select(.id=="tasks_sh
 assert_eq ok    "$(printf '%s' "$out" | jq -r '.checks[] | select(.id=="work_not_git") | .status')" "plain work/ passes"
 assert_eq 1     "$(printf '%s' "$out" | jq '.failures | length')" "the week's error events are grouped"
 
-# a missing definition checkout is a failure, never a silent pass
+# a missing definition checkout is a failure while definition_repo claims one exists
 assert_eq fail "$(printf '%s' "$out" | jq -r '.checks[] | select(.id=="definition_clean") | .status')" "unreadable checkout is not reported clean"
+
+# local-only (definition_repo empty): the same missing checkout is the deployment's shape,
+# reported as a warn — never a green, never a failed run (docs/persistence.md)
+sed -i.bak 's/^- definition_repo: .*/- definition_repo:/' "$WORK/CONFIG.md" && rm -f "$WORK/CONFIG.md.bak"
+out_local="$(PA_SKIP_STRUCTURE=1 HOME="$SB" WORK_DIR="$WORK" TZ=UTC bash "$PREFLIGHT" audit 2>/dev/null)"
+assert_eq warn "$(printf '%s' "$out_local" | jq -r '.checks[] | select(.id=="definition_clean") | .status')" "local-only reports the missing checkout as a warn"
+sed -i.bak 's|^- definition_repo:.*|- definition_repo: acme/personal-assistant|' "$WORK/CONFIG.md" && rm -f "$WORK/CONFIG.md.bak"
 
 mkdir -p "$WORK/.git"
 out2="$(PA_SKIP_STRUCTURE=1 HOME="$SB" WORK_DIR="$WORK" TZ=UTC bash "$PREFLIGHT" audit 2>/dev/null)"

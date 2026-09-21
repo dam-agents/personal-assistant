@@ -55,6 +55,23 @@ nothing here mirrors the owner's list into an external system.
 `restore` is the inverse — remote → `work/` (data only, never a `.git`) — run once on a
 fresh volume (`ONBOARDING.md` Step 2a).
 
+## Local-only mode (no GitHub)
+
+GitHub is optional ([kit.yaml](../kit.yaml), README → **Setup**). No `gh`, no
+authentication, or an unreachable remote → the agent runs **local-only**: it serves its
+owner in full, and exactly three capabilities are unavailable —
+
+- **no version check and no self-update**: the definition is whatever the volume holds
+  (the audit reports it "not measured", never a green);
+- **no definition PR and no tracking issue**: an owner-requested definition change is
+  written on a local branch and the owner is told a PR cannot be opened from here;
+- **no `work/` backup**: the volume is the only copy (section above).
+
+Each degrades where it happens — a log line and a `warn`, never a failed run. An empty
+`definition_repo` in `work/CONFIG.md` ([config.md](config.md)) is how a run recognizes the
+mode. Granting GitHub later needs no migration: `gh auth setup-git`, then `ONBOARDING.md`
+Step 1 wires the remote and `verify-onboarding.sh --live` confirms it.
+
 ## Definition version & upgrade
 
 `VERSION` (repo root, one line, semver) identifies the definition; `work/VERSION` is the
@@ -74,7 +91,8 @@ head -1 /home/agent/work/VERSION 2>/dev/null                        # adopted
 
 Checked-out < latest → **tell the owner the agent is not up to date** (state both
 versions); update only when they ask, never silently, then migrate in the same session.
-Adopted ≠ checked-out → migrate now. All equal → report "up to date".
+Adopted ≠ checked-out → migrate now. All equal → report "up to date". No reachable remote
+(local-only, above) → say the check could not run, and go on with the volume's version.
 
 Update a clean checkout by **fast-forward** — it reaches the same commit without
 discarding anything, so it also passes an auto-mode guard that refuses destructive
@@ -137,8 +155,9 @@ gh pr create --repo "$DEFINITION_REPO" --base main --head "fix/<short-slug>" \
   --title "<title>" --body "<what and why>"
 ```
 
-The agent's job ends at "PR opened". Use fresh descriptive branch names; runtime state
-never goes to this repo.
+The agent's job ends at "PR opened" — or, local-only (above), at "branch committed, no
+remote to push to", said out loud. Use fresh descriptive branch names; runtime state never
+goes to this repo.
 
 The definition repo may sit on a different host than the systems the agent works on, so
 **every definition-repo call names its host** — `-R "$DEF_HOST/$DEFINITION_REPO"` for

@@ -83,7 +83,9 @@ the module and how to enable it — never improvised.
 
 - **`definition_repo`** — `[<host>/]<owner>/<repo>` of this definition, stored at onboarding
   so a fresh scheduled shell can check versions and file tracking issues without an env var.
-  Default: derived from the `origin` remote of the `$HOME` checkout.
+  Default: derived from the `origin` remote of the `$HOME` checkout. Empty (no GitHub) →
+  local-only mode ([persistence.md](persistence.md) → **Local-only mode (no GitHub)**): no
+  version check, no self-update, no definition PR, no tracking issue.
 - **`log_level`** — `info` | `debug`. Diagnostic verbosity of the structured events log
   ([logging.md](logging.md)); **never gates behavior**. Missing → `info`.
 

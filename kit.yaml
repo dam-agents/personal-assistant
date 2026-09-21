@@ -35,13 +35,16 @@ connections:
       — the owner pastes their member ID during onboarding — and never to a
       group.
   - accepts: [github, github-enterprise]
-    required: true
+    required: false
     note: >-
-      Read, and pull requests, on this definition repository: the agent checks
-      its own version and proposes changes to itself. Point GITHUB_REPO_WORK at
-      a private repository to also back up work/ — without one, the owner's
-      tasks and notes exist on the volume and nowhere else. A definition repo
-      off github.com also needs DEF_HOST.
+      Recommended, not required. Read, and pull requests, on this definition
+      repository: the agent checks its own version and proposes changes to
+      itself. Point GITHUB_REPO_WORK at a private repository to also back up
+      work/ — without one, the owner's tasks and notes exist on the volume and
+      nowhere else. A definition repo off github.com also needs DEF_HOST.
+      Without this connection the agent runs local-only: it serves its owner in
+      full, but cannot check its version, update itself, open a pull request, or
+      back anything up. Granting it later needs no migration.
 channels:
   - type: slack
     note: >-
@@ -49,29 +52,32 @@ channels:
       one person. Telegram works the same way when that is the connection you
       granted.
 schedules:
-  # Created disabled wherever the run is opt-in: every message the agent starts
-  # by itself is gated on a work/CONFIG.md key the owner sets in the interview,
-  # and a schedule firing before onboarding has no one to write to. ONBOARDING.md
-  # Step 4 stays the single source of truth for cron, timezone and task text — it
-  # re-times each schedule to the owner's timezone, replaces the placeholder text
-  # below, and enables what the owner asked for.
+  # Created enabled, so a finished interview needs no schedule surgery. The
+  # work/CONFIG.md keys stay the gate on every message the agent starts by
+  # itself (channel_notifications, the run's own key, owner_member_id), and none
+  # of them exists before the interview: a schedule that fires first finds its
+  # pre-flight gated, reports nothing_to_do, and writes to nobody. ONBOARDING.md
+  # Step 4 stays the single source of truth for cron, timezone and task text —
+  # it re-times each schedule to the owner's timezone, replaces the placeholder
+  # text below, and disables the one whose run the owner declined.
   - name: personal-assistant-brief-weekday
     cron: "0 8 * * 1-5"
     sessionMode: fresh
-    enabled: false
+    enabled: true
     task: >-
       Morning brief: run the brief pre-flight, then send it. Entry command and
       full procedure: ONBOARDING.md Step 4.
   - name: personal-assistant-review-weekly
     cron: "30 8 * * 1"
     sessionMode: fresh
-    enabled: false
+    enabled: true
     task: >-
       Weekly review: run the review pre-flight, then send it. Entry command and
       full procedure: ONBOARDING.md Step 4.
   - name: personal-assistant-audit-weekly
     cron: "0 7 * * 5"
     sessionMode: fresh
+    enabled: true
     task: >-
       Weekly audit: run the audit pre-flight, then report traffic-light. Entry
       command and full procedure: ONBOARDING.md Step 4.

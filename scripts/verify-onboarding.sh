@@ -81,9 +81,11 @@ if [ "$STRUCTURE" = 1 ]; then
       fail definition_clean "git status is not clean" \
         "inspect 'git -C $HOME_DIR status --porcelain'; anything under work/, .ssh, .claude or .config showing up means .gitignore lost its allowlist shape — restore it, never 'git clean'"
     fi
-  else
-    fail definition_repo "no git checkout at $HOME_DIR" \
+  elif [ -n "$(cfg definition_repo)" ]; then
+    fail definition_repo "no git checkout at $HOME_DIR, but definition_repo is set" \
       "re-run ONBOARDING.md Step 1 (init + fetch + hard reset; never clone into \$HOME)"
+  else
+    warn definition_repo "no git checkout at $HOME_DIR — local-only: no version check, no self-update, no definition PR (docs/persistence.md)"
   fi
   if [ "$(grep -v '^[[:space:]]*#' "$HOME_DIR/.gitignore" 2>/dev/null | grep -v '^[[:space:]]*$' | head -1)" = '/*' ]; then
     ok gitignore_allowlist ".gitignore ignores everything first, then re-includes the definition"
@@ -175,6 +177,9 @@ else
         (owner_member_id)
           [ -n "$(cfg "$k")" ] && ok "cfg_$k" "set" \
             || warn "cfg_$k" "empty — the agent can reply, but no proactive run may send anything" ;;
+        (definition_repo)
+          [ -n "$(cfg "$k")" ] && ok "cfg_$k" "$(cfg "$k")" \
+            || warn "cfg_$k" "empty — local-only: no version check, no self-update, no definition PR (docs/persistence.md)" ;;
         (*)
           [ -n "$(cfg "$k")" ] && ok "cfg_$k" "$(cfg "$k")" \
             || fail "cfg_$k" "key present but empty" "give it a value (docs/config.md) — an empty value is not the documented default" ;;
@@ -227,12 +232,14 @@ if [ "$LIVE" = 1 ]; then
   if command -v git >/dev/null 2>&1 && [ -d "$HOME_DIR/.git" ]; then
     if git -C "$HOME_DIR" ls-remote origin HEAD >/dev/null 2>&1; then
       ok live_definition_remote "definition remote reachable"
+    elif [ -n "$(cfg definition_repo)" ]; then
+      fail live_definition_remote "definition_repo is set but its remote cannot be reached" \
+        "check the GitHub connection and 'gh auth setup-git', or clear definition_repo to run local-only (docs/persistence.md)"
     else
-      fail live_definition_remote "cannot reach the definition remote" \
-        "check the GitHub connection and 'gh auth setup-git'; without it the agent cannot update itself or open PRs"
+      warn live_definition_remote "definition remote unreachable — local-only: no version check, no self-update, no definition PR (docs/persistence.md)"
     fi
   else
-    warn live_definition_remote "no git checkout or git missing — not measured"
+    warn live_definition_remote "no git checkout or git missing — not measured; the definition_repo check says whether that is local-only"
   fi
 
   if [ -n "${GITHUB_REPO_WORK:-}" ]; then
