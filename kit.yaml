@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dam-agents/dam-starter-kits/main/kit.schema.json
+# The starter kit this definition is offered as. It lives here, beside the
+# definition it describes, so a change to the agent and a change to the kit
+# offering it are the same commit.
+schemaVersion: v1
+id: personal-assistant
+name: Personal Assistant
+description: >-
+  Serves exactly one person: keeps their task list, answers their questions and
+  drafts text in a direct message conversation, and — when they opt in — sends a
+  weekday morning brief and a Monday review. Who it is and what it takes care of
+  are written by its owner in a short interview at first run, not shipped here.
+category: productivity
+icon: user
+# No harness-specific code in the definition: AGENTS.md points every harness at
+# CLAUDE.md, and the scheduled runs are plain bash plus the platform tools.
+harnesses: [claude-code, codex, bob]
+docsUrl: https://github.com/dam-agents/personal-assistant
+# `self` is this repository, at the commit the kit was resolved at, so an agent
+# always runs the definition this file shipped with. `home`, because the
+# checkout is /home/agent itself — the allowlist .gitignore is what makes that
+# safe, and the runtime state lives beside it in work/, outside the repo.
+seed:
+  self: true
+  into: home
+# No `onboarding` block on purpose: the platform starts the first run itself,
+# and the agent is already standing in its own runbook. ONBOARDING.md guards
+# itself with the $HOME/.personal-assistant-onboarded sentinel and takes its
+# definition repo from the checkout's `origin`.
+connections:
+  - accepts: [slack, telegram]
+    required: true
+    note: >-
+      The one conversation this assistant lives in. It writes to a single person
+      — the owner pastes their member ID during onboarding — and never to a
+      group.
+  - accepts: [github, github-enterprise]
+    required: true
+    note: >-
+      Read, and pull requests, on this definition repository: the agent checks
+      its own version and proposes changes to itself. Point GITHUB_REPO_WORK at
+      a private repository to also back up work/ — without one, the owner's
+      tasks and notes exist on the volume and nowhere else. A definition repo
+      off github.com also needs DEF_HOST.
+channels:
+  - type: slack
+    note: >-
+      A direct message conversation, not a shared channel — this agent serves
+      one person. Telegram works the same way when that is the connection you
+      granted.
+schedules:
+  # Created disabled wherever the run is opt-in: every message the agent starts
+  # by itself is gated on a work/CONFIG.md key the owner sets in the interview,
+  # and a schedule firing before onboarding has no one to write to. ONBOARDING.md
+  # Step 4 stays the single source of truth for cron, timezone and task text — it
+  # re-times each schedule to the owner's timezone, replaces the placeholder text
+  # below, and enables what the owner asked for.
+  - name: personal-assistant-brief-weekday
+    cron: "0 8 * * 1-5"
+    sessionMode: fresh
+    enabled: false
+    task: >-
+      Morning brief: run the brief pre-flight, then send it. Entry command and
+      full procedure: ONBOARDING.md Step 4.
+  - name: personal-assistant-review-weekly
+    cron: "30 8 * * 1"
+    sessionMode: fresh
+    enabled: false
+    task: >-
+      Weekly review: run the review pre-flight, then send it. Entry command and
+      full procedure: ONBOARDING.md Step 4.
+  - name: personal-assistant-audit-weekly
+    cron: "0 7 * * 5"
+    sessionMode: fresh
+    task: >-
+      Weekly audit: run the audit pre-flight, then report traffic-light. Entry
+      command and full procedure: ONBOARDING.md Step 4.

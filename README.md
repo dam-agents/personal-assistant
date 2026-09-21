@@ -32,6 +32,11 @@ whose entries are per-version upgrade steps for already-deployed instances.
 
 ## Setup
 
+Created from the **starter kit** ([`kit.yaml`](kit.yaml)), the platform does all of this:
+it asks for the connections, seeds this definition into the agent's home, registers the
+three schedules (the two opt-in ones disabled), and starts the agent on the runbook. Set
+`GITHUB_REPO_WORK` first if the state is to be backed up. By hand instead:
+
 1. **Create the agent** on the DAM platform and grant it:
    - **Slack** (or **Telegram**) — the channel the owner talks to it in. Required.
    - **GitHub** — for the definition repo (self-update, PRs) and, optionally, the private
@@ -128,4 +133,6 @@ direct session; the weekly audit reports drift but never acts on it. Details:
   and the offline test suite.
 - [`VERSION`](VERSION) + [`CHANGELOG.md`](CHANGELOG.md) — definition semver and per-version
   upgrade steps.
+- [`kit.yaml`](kit.yaml) — the starter kit this definition is offered as: the connections
+  it asks for, the schedules it creates, and the definition it seeds.
 - [`LICENSE`](LICENSE) — Apache 2.0.

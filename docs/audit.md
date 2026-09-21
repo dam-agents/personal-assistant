@@ -45,8 +45,8 @@ declined. Task counters come from the review's worklist, not from here.
 1. **Schedules exist and are enabled** — `mcp__platform-outbound__list_schedules`: every run
    type the configuration enables has its `personal-assistant-*` schedule with the cron
    `ONBOARDING.md` Step 4 registered. A dead schedule is invisible to every other check: the
-   cadence check catches the past, this one catches the future. A schedule for a disabled
-   run type is a `warn`, not a fix.
+   cadence check catches the past, this one catches the future. A schedule that exists but is
+   disabled for a disabled run type is expected; an enabled one is a `warn`, not a fix.
 2. **Diagnose every `failures[]` signature** — cause and fix, classified as environment,
    agent mistake, or definition bug ([logging.md](logging.md) → **Diagnosing a failure**).
    A verified environment cause goes to `work/LESSONS.md`; a definition bug becomes a
