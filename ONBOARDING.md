@@ -45,9 +45,10 @@ volume, not per scheduled run.
    `mcp__platform-outbound__list_schedules` that the platform tools answer at all, and prove
    the channel itself in Step 5's live pass.
 2. **Definition repo** — derive `OWNER/REPO` from the URL of this runbook as the owner gave
-   it (for a fork that is the fork, never upstream). No URL available → ask. Validate, then
-   `export DEFINITION_REPO="<owner/repo>"` (it is persisted into `work/CONFIG.md` in Step 3,
-   because a scheduled run starts a fresh shell with no exports).
+   it (for a fork that is the fork, never upstream). No URL (a kit-created agent is already
+   standing in its checkout) → `git -C "$HOME" remote get-url origin`; neither → ask.
+   Validate, then `export DEFINITION_REPO="<owner/repo>"` (it is persisted into
+   `work/CONFIG.md` in Step 3, because a scheduled run starts a fresh shell with no exports).
 3. **Environment variables:**
    - `GITHUB_REPO_WORK` — `<owner>/<repo>` of a **private** repository backing up `work/`.
      Unset is supported: the state then lives on the volume only. Say this out loud, once,
@@ -332,21 +333,26 @@ exist yet. The full run comes in Step 5.
 
 ## Step 4 — Register the scheduled runs
 
-Check with `mcp__platform-outbound__list_schedules` first — a schedule whose `name` starts
-with the same prefix already exists → skip creating it. Never use an in-process cron; only
-platform schedules survive restarts and are visible to the owner.
+Check with `mcp__platform-outbound__list_schedules` first — an agent created from the
+starter kit ([kit.yaml](kit.yaml)) already has all three, with placeholder task text and the
+opt-in ones disabled. Never create a second schedule of the same name: bring the existing one
+in line instead (recreate it only where the platform cannot edit it in place). Never use an
+in-process cron; only platform schedules survive restarts and are visible to the owner.
 
-Create each one with `sessionMode: fresh`, cron in the owner's timezone, and the task text
-below verbatim — this step is the **single source of truth** for the entry commands.
+Each schedule ends up with `sessionMode: fresh`, cron in the owner's timezone, the task text
+below verbatim — this step is the **single source of truth** for the entry commands — and
+enabled exactly when the config key named with it is.
 
-- `personal-assistant-brief-weekday` — only when `daily_brief: enabled`; default `0 8 * * 1-5`:
+- `personal-assistant-brief-weekday` — enabled only when `daily_brief: enabled`; default
+  `0 8 * * 1-5`:
 
   > Morning brief. Run `bash "$HOME/scripts/preflight.sh" brief` first. If its JSON says
   > nothing_to_do, report its logs in one line and end the run. Otherwise follow CLAUDE.md →
   > "Run procedures": read docs/brief.md, send one message to the owner, append the BRIEF.log
   > line, and commit & push work/ at the end when $GITHUB_REPO_WORK is set.
 
-- `personal-assistant-review-weekly` — only when `weekly_review: enabled`; default `30 8 * * 1`:
+- `personal-assistant-review-weekly` — enabled only when `weekly_review: enabled`; default
+  `30 8 * * 1`:
 
   > Weekly review. Run `bash "$HOME/scripts/preflight.sh" review` first. If its JSON says
   > nothing_to_do, report its logs in one line and end the run. Otherwise follow CLAUDE.md →
@@ -362,9 +368,10 @@ below verbatim — this step is the **single source of truth** for the entry com
   > channel_notifications are enabled), append the AUDIT.log line, and commit & push work/ at
   > the end when $GITHUB_REPO_WORK is set.
 
-A proactive run the owner switched off gets **no schedule**: the key is the gate, and a
-schedule for a disabled run would fire a quiet, pointless session every day. Turning it on
-later means registering the schedule then ([docs/conversation.md](docs/conversation.md) →
+A proactive run the owner switched off gets **no firing schedule**: the key is the gate, and
+an enabled schedule for a disabled run would fire a quiet, pointless session every day. Leave
+the kit's copy disabled, and create none where there is none; turning the run on later means
+enabling or registering it then ([docs/conversation.md](docs/conversation.md) →
 **Changes with lasting effect**).
 
 ## Step 5 — Record the version, write the sentinel, verify, report
