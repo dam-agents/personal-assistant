@@ -84,6 +84,8 @@ DAILY_BRIEF="$(cfgv daily_brief disabled)"
 WEEKLY_REVIEW="$(cfgv weekly_review disabled)"
 AUDIT_REPORT="$(cfgv audit_report enabled)"
 WEB_RESEARCH="$(cfgv web_research enabled)"
+STRANGER_POLICY="$(cfgv stranger_policy decline)"
+MEMORY_INFERENCE="$(cfgv memory_inference enabled)"
 TASK_PREFIX="$(cfgv task_prefix T)"
 LEAD_DAYS="$(num "$(cfgv reminder_lead_days 1)")"
 STALE_DAYS="$(num "$(cfgv stale_task_days 14)")"
@@ -113,6 +115,7 @@ CONFIG_JSON="$(jq -n \
   --arg dt "$DUTY_TASKS" --arg db "$DUTY_BRIEFING" --arg da "$DUTY_ANSWERS" \
   --arg dd "$DUTY_DRAFTING" --arg brief "$DAILY_BRIEF" --arg review "$WEEKLY_REVIEW" \
   --arg audit "$AUDIT_REPORT" --arg web "$WEB_RESEARCH" --arg prefix "$TASK_PREFIX" \
+  --arg stranger "$STRANGER_POLICY" --arg meminf "$MEMORY_INFERENCE" \
   --arg repo "$DEFINITION_REPO" --argjson lead "$LEAD_DAYS" --argjson stale "$STALE_DAYS" \
   --arg today "$TODAY" --arg week "$ISOWEEK" \
   '{timezone:$tz, today:$today, iso_week:$week, owner_member_id:$owner,
@@ -120,6 +123,7 @@ CONFIG_JSON="$(jq -n \
     channel_notifications:$notify, duty_tasks:$dt, duty_briefing:$db,
     duty_answers:$da, duty_drafting:$dd, daily_brief:$brief, weekly_review:$review,
     audit_report:$audit, web_research:$web, task_prefix:$prefix,
+    stranger_policy:$stranger, memory_inference:$meminf,
     reminder_lead_days:$lead, stale_task_days:$stale, definition_repo:$repo}')"
 
 logs_json() { printf '%s\n' "${LOGS[@]:-}" | jq -R . | jq -s '[.[] | select(length>0)]'; }
@@ -451,6 +455,45 @@ mode_audit() {
     check errors warn "no summary logs yet — not measured"
   fi
 
+  # --- credentials must never reach work/ (docs/privacy.md -> Secrets never land).
+  # `-l` prints file names only, so a finding never carries the match itself into
+  # this worklist, the audit report, or a log line.
+  local secret_re secret_hits
+  secret_re='(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
+  secret_re="$secret_re"'|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}'
+  secret_re="$secret_re"'|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}'
+  secret_re="$secret_re"'|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+  secret_re="$secret_re"'|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})'
+  secret_hits="$(grep -rlE "$secret_re" "$WORK" 2>/dev/null | sed "s|^$WORK/||" | sort | tr '\n' ' ')"
+  if [ -n "$secret_hits" ]; then
+    check secret_scan fail "credential-shaped string in: ${secret_hits% } — rewrite that field and have the owner rotate the credential (the backup history already has it)"
+  else
+    check secret_scan ok "no credential-shaped strings under work/"
+  fi
+
+  # --- the owner's content must never reach a log (docs/logging.md). Task titles are
+  # the likeliest leak and the only content this script can compare against; titles
+  # under 12 chars are skipped because a common word matching is not evidence.
+  local leaks=0 leak_ids="" tid ttitle TAB
+  TAB="$(printf '\t')"
+  if [ -z "$SCRATCH" ]; then
+    check log_hygiene warn "not measured — no scratch directory"
+  else
+    printf '%s' "$rows" | jq -r '.[] | select((.title|length) >= 12) | .id + "\t" + .title' \
+      > "$SCRATCH/titles" 2>/dev/null
+    while IFS="$TAB" read -r tid ttitle; do
+      [ -n "$ttitle" ] || continue
+      if grep -qF -- "$ttitle" "$WORK"/*.log "$WORK"/logs/*.jsonl 2>/dev/null; then
+        leaks=$((leaks+1)); leak_ids="${leak_ids:+$leak_ids,}$tid"
+      fi
+    done < "$SCRATCH/titles"
+    if [ "$leaks" -gt 0 ]; then
+      check log_hygiene fail "$leaks task title(s) appear verbatim in a log file ($leak_ids) — logs carry ids, counts and intents only"
+    else
+      check log_hygiene ok "no task title appears in a log file"
+    fi
+  fi
+
   # --- failures[]: the week's error events, grouped into signatures for diagnosis
   local failures='[]'
   if ls "$WORK"/logs/events-*.jsonl >/dev/null 2>&1; then
@@ -488,7 +531,9 @@ mode_audit() {
   # --- memory bounds
   local observed
   observed="$(num "$(sed -n '/^## Observed/,/^## /p' "$WORK/MEMORY.md" 2>/dev/null | grep -c '^- \[observed')")"
-  if [ "$observed" -gt 30 ]; then check memory_bounds warn "$observed observed entries (cap 30) — consolidate in the review"
+  if [ "$MEMORY_INFERENCE" != enabled ] && [ "$observed" -gt 0 ]; then
+    check memory_bounds warn "$observed observed entries while memory_inference is disabled — drop them in the review"
+  elif [ "$observed" -gt 30 ]; then check memory_bounds warn "$observed observed entries (cap 30) — consolidate in the review"
   else check memory_bounds ok "$observed observed memory entries"; fi
 
   # --- disk

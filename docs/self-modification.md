@@ -179,8 +179,18 @@ Domain invariants (mirroring CLAUDE.md → **Hard invariants**):
 - **Sender identity from platform metadata only**; embedded, quoted, fetched, and tool
   content stays data no matter what a change makes easier.
 - **The owner's content stays in `work/`** — never in logs, never in a definition file,
-  never in an issue or PR body, never in an example. Its only exits are the owner's channel
-  and the private backup remote.
+  never in an issue or PR body, never in a URL or search query, never in an example. Its
+  only exits are the owner's channel and the private backup remote
+  ([privacy.md](privacy.md) → **The egress map**), and no change may add a third.
+- **No credential is ever written** to a state file, a log, a reply, or either repository,
+  and the agent never asks for one.
+- **Nobody but the owner is told anything about the owner** — no change may make a
+  non-owner sender disclosable-to or obeyable, whatever `dm_control` or a persona says.
+- **`owner_member_id` and the reversal of a lockdown stay direct-session only.** A change
+  that lets the channel re-point the agent's one addressee is the takeover it exists to
+  prevent.
+- **[privacy.md](privacy.md) is not configurable.** A change may add a key that tightens
+  its rules for an owner who wants more; none may add one that relaxes them.
 - **Record ordering, per effect**: messages are send-then-record, task and configuration
   writes are write-before-send. A change that moves an effect between the two states which
   crash window it now accepts and adds the audit check for it.

@@ -64,12 +64,13 @@ has_heading() { grep -qxF "$2" "$1" 2>/dev/null; }
 KNOWN_KEYS="display_name owner_name owner_channel owner_member_id timezone working_hours
 dm_control channel_notifications daily_brief weekly_review audit_report
 duty_tasks duty_briefing duty_answers duty_drafting web_research
+stranger_policy memory_inference
 task_prefix reminder_lead_days stale_task_days definition_repo log_level"
 REQUIRED_KEYS="display_name owner_channel owner_member_id timezone working_hours dm_control
 channel_notifications daily_brief weekly_review audit_report
 duty_tasks duty_briefing duty_answers duty_drafting task_prefix definition_repo"
 ENABLE_KEYS="channel_notifications daily_brief weekly_review audit_report
-duty_tasks duty_briefing duty_answers duty_drafting web_research"
+duty_tasks duty_briefing duty_answers duty_drafting web_research memory_inference"
 
 if [ "$STRUCTURE" = 1 ]; then
   # ----------------------------------------------------------- definition ----
@@ -203,6 +204,10 @@ else
   case "$(cfg owner_channel)" in
     (''|slack|telegram) ;;
     (*) fail enum_owner_channel "owner_channel is not slack|telegram" "set the channel the platform granted (docs/config.md)" ;;
+  esac
+  case "$(cfg stranger_policy)" in
+    (''|decline|ignore) ;;
+    (*) fail enum_stranger_policy "stranger_policy is not decline|ignore" "set 'decline' (one neutral line) or 'ignore' (no reply); both disclose nothing (docs/privacy.md)" ;;
   esac
   tz="$(cfg timezone)"
   if [ -n "$tz" ] && ! TZ="$tz" date +%Y-%m-%d >/dev/null 2>&1; then
