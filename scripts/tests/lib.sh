@@ -58,6 +58,8 @@ write_config() { # <<'EOF' body of extra/overriding bullets
 - duty_answers: enabled
 - duty_drafting: disabled
 - web_research: enabled
+- stranger_policy: decline
+- memory_inference: enabled
 - task_prefix: T
 - reminder_lead_days: 1
 - stale_task_days: 14

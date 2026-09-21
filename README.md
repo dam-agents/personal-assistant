@@ -81,6 +81,8 @@ Filled interactively at onboarding. Exact per-key semantics: [docs/config.md](do
 | `audit_report` | defaulted `enabled` | Whether the weekly audit also goes to the channel (the chat UI always gets it). |
 | `duty_tasks`, `duty_briefing`, `duty_answers`, `duty_drafting` | asked | The four shipped duty modules. Missing → off; a request for a disabled module is declined, never improvised. |
 | `web_research` | defaulted `enabled` | May the answering duty read the open web when the harness offers a fetch tool. |
+| `stranger_policy` | asked, defaulted `decline` | What a message from anyone but the owner gets: one neutral line, or no reply. Neither discloses anything. |
+| `memory_inference` | asked, defaulted `enabled` | May the agent write down patterns it merely noticed, or only what the owner stated. |
 | `task_prefix` | defaulted `T` — **immutable once used** | Prefix of every task ID; changing it later orphans every row, note file, and past message. |
 | `reminder_lead_days`, `stale_task_days` | defaulted `1` / `14` | How far ahead the brief looks; when the review calls a task stale. |
 | `definition_repo` | derived | `[<host>/]<owner>/<repo>`, so a fresh scheduled shell can check versions and file issues. |
@@ -102,14 +104,25 @@ Filled interactively at onboarding. Exact per-key semantics: [docs/config.md](do
   to nobody, and writes to no third system; a draft it writes is handed back, never
   delivered.
 
-## Privacy
+## Privacy & security
 
-This agent holds one person's tasks, notes, and preferences. Three rules are built into the
-definition rather than left to good behavior: the owner's content never enters a log line
-(logs carry IDs, counts, and intents), it never reaches the definition repo (the allowlist
-`.gitignore` makes `git add` incapable of it), and the only two places it leaves the agent
-are the owner's own channel and the private backup remote. The weekly audit checks the first
-two; the third is the deployment's choice of repository.
+This agent holds one person's tasks, notes, and preferences, so the rules protecting them
+are part of the definition rather than left to good behavior. They have one home,
+[`docs/privacy.md`](docs/privacy.md), and start from an **egress map**: every surface the
+agent may write to and the most that may cross it. The owner's channel and the private
+backup remote carry content; logs, repositories, commit messages and search queries never
+do — and paraphrase counts as disclosure. On top of that: credentials are never stored
+anywhere, the agent builds no profile of the owner or of the people in their list, research
+queries are stripped of their details before they leave, and anyone who is not the owner is
+told nothing and obeyed in nothing — not even whether the owner exists.
+
+Two of the rules are enforced by machine rather than by prose: the weekly audit's
+`secret_scan` fails on a credential-shaped string anywhere in `work/` and `log_hygiene`
+fails when a task title reaches a log file — each naming the file or the ID, never the
+value. The allowlist `.gitignore` makes `git add` incapable of reaching `work/` at all.
+Against account takeover, `owner_member_id` can only be changed from the direct session, so
+no message can re-point the agent at a new address; conversely a "lock down" is honored
+instantly from anywhere, because it only ever removes capability.
 
 ## Persistence
 

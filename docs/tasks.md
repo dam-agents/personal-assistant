@@ -77,3 +77,5 @@ never written is one they will count on.
   audit. Guessing at a broken row's meaning loses the owner's data quietly.
 - Task content is the owner's: it goes to their channel and their notes, never into
   `work/logs/` (`CLAUDE.md` → **Hard invariants**). Log the ID and the action, nothing else.
+- A credential arriving with a task is never written into the row or the note — the task is
+  kept without it and the owner is told in one line ([privacy.md](privacy.md)).

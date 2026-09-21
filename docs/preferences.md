@@ -39,7 +39,9 @@ Bounded, and written by two different routes:
   These are **never dropped** by consolidation.
 - `## Observed` — patterns the agent noticed, each one line, dated, and tagged with where it
   came from: `- [observed 2026-09-18] …`. Cap: 30 entries. An observation is written only
-  when it repeated at least twice and would change what the agent does next time.
+  when it repeated at least twice and would change what the agent does next time. Requires
+  `memory_inference: enabled` ([config.md](config.md)) — `disabled` leaves the section
+  empty. Never a pattern about anyone but the owner ([privacy.md](privacy.md)).
 
 Per-task knowledge does not belong here — it goes in that task's note file
 ([tasks.md](tasks.md) → **Operations**), where it applies to one task instead of leaking
@@ -52,7 +54,8 @@ something the assistant now believes.
 
 ## Weekly consolidation
 
-Run once, in the weekly review ([review.md](review.md)):
+Run once, in the weekly review ([review.md](review.md)). `memory_inference: disabled`
+skips steps 1–3 — there is nothing inferred to consolidate:
 
 1. Merge duplicate `## Observed` entries; keep the earliest date and the clearest wording.
 2. Promote an observation confirmed three times or more into `## Preferences` — **after

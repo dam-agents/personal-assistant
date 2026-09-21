@@ -27,6 +27,8 @@ Do not recompute them by hand; read them.
 | `tasks_counter` | The counter is missing or below the highest allocated ID — IDs could be reused. |
 | `tasks_orphans` | A `work/TASKS/<id>.md` note has no row in either the live file or the archive. |
 | `cadence_brief`, `cadence_review`, `cadence_audit` | An enabled run type has not logged a run within its expected window. |
+| `secret_scan` | A credential-shaped string appears anywhere under `work/`. Names the file, never the match ([privacy.md](privacy.md) → **Secrets never land**). |
+| `log_hygiene` | A live task title appears verbatim in a log file — the owner's content reached a log ([logging.md](logging.md)). Names the task ID, never the title. |
 | `errors` | `ERROR:` lines in `work/*.log`. No log file at all is `warn` — not measured, never a green. |
 | `retention` | Housekeeping report: events files older than 14 days and `INBOX.log` lines older than 90 days removed. |
 | `memory_bounds` | `## Observed` over its cap ([preferences.md](preferences.md)). |
@@ -56,6 +58,9 @@ declined. Task counters come from the review's worklist, not from here.
 3. **Sample this week's messages** (about three, from the logs and the state they describe):
    did they go only to `owner_member_id`, did they honor `work/PERSONA.md`'s boundaries, did
    a declined request stay declined, is every task mentioned still in the state it claimed?
+   Then the egress question the deterministic checks cannot ask: did anything the owner
+   wrote reach a surface [privacy.md](privacy.md) → **The egress map** does not allow — a
+   research query, a commit or issue, a reply to someone else?
 4. **The double-send window** — two `sent=1` brief lines inside one owner-local day, or two
    review lines in one ISO week. That is the crash window between the send and the log
    append; one occurrence is expected behavior of send-then-record, a pattern is a bug.
