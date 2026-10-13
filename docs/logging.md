@@ -50,6 +50,7 @@ hand-written line (when `log.sh` is unavailable) matches what the audit groups:
 | `persona_change` | agent | `<file> <section>` — never the text |
 | `inbox` | agent | `<intent> <action>` |
 | `memory` | agent (review) | `merged <n> promoted <n> dropped <n>` |
+| `artifact` | agent | `<action> failed: <short cause>` — a success is its `ARTIFACTS.log` line |
 | `work_backup` | `work-backup.sh` | its own messages |
 | `onboarding_verify` | `verify-onboarding.sh` | `PASS <scope> …` / `FAILED <scope> …` |
 | `audit` | agent | `ok=<n> warn=<n> red=<n>` |
@@ -68,6 +69,23 @@ One line per handled message, written immediately after the reply
 
 `action` is one of `answered`, `written`, `declined`, `failed`. It is what keeps a
 re-delivered message from being answered twice; the audit trims it to the last 90 days.
+
+### `work/ARTIFACTS.log` — what exists outside
+
+One line per publish, visibility change, or deletion, appended once it landed and before
+the reply ([privacy.md](privacy.md) → **Artifacts**); created by the first one:
+
+```
+<ISO-UTC> artifact=<platform-id> action=<published|visibility|deleted> visibility=<private|<scope>|-> sharing=<never|confirm> asked=<message-id|direct|->
+```
+
+`published` is a new artifact or a new version of one. `visibility` is the reach after the
+action: `private` when only the owner sees it, else the platform's word for the wider
+reach, lowercase; `-` once deleted. `sharing` is `artifact_sharing` at the time of the
+write. `asked` is the owner's `intent=artifact` message that asked for or confirmed it,
+`direct` for the direct session, `-` when nobody had to — never the page's title. Never
+trimmed: it is the record of what exists outside `work/`, and what the audit's
+`artifact_visibility` reads, latest line per artifact.
 
 ## Diagnosing a failure
 

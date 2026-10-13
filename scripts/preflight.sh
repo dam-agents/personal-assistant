@@ -12,8 +12,9 @@
 #   .nothing_to_do == true  -> the agent ends the run immediately.
 #   otherwise               -> the agent processes the arrays per CLAUDE.md + docs/.
 #
-# Modes: brief | review | audit.  Contracts: docs/brief.md, docs/review.md,
-# docs/audit.md.  State formats: docs/tasks.md, docs/logging.md.
+# Modes: brief | review | audit | artifact <file>.  Contracts: docs/brief.md,
+# docs/review.md, docs/audit.md, docs/privacy.md -> Artifacts.  State formats:
+# docs/tasks.md, docs/logging.md.
 #
 # The owner's content never leaves work/: task titles travel in the worklist (the
 # agent needs them to write the message) but never into any log line here.
@@ -46,7 +47,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # drift apart. A missing lib is fatal: parsing config by hand is how they drift.
 . "$SCRIPT_DIR/lib/config.sh" || { echo "cannot source lib/config.sh" >&2; exit 1; }
 
-LOG_JOB="$MODE"
+# The artifact gate runs inside another run and logs under that run's job.
+case "$MODE" in (artifact) LOG_JOB="${LOG_JOB:-session}";; (*) LOG_JOB="$MODE";; esac
 if ! . "$SCRIPT_DIR/log.sh" 2>/dev/null; then logev() { :; }; fi
 
 # Scratch, cleaned up on every exit path — a leftover temp file is an audit finding.
@@ -57,6 +59,14 @@ BAD_FILE="$SCRATCH/bad-rows"
 
 trim() { local v="${1-}"; v="${v#"${v%%[![:space:]]*}"}"; printf '%s' "${v%"${v##*[![:space:]]}"}"; }
 num()  { case "${1-}" in (''|*[!0-9]*) printf 0;; (*) printf '%s' "$1";; esac; }
+
+# Credential shapes (docs/privacy.md -> Secrets never land) — one home for the
+# audit's secret_scan and the artifact gate.
+SECRET_RE='(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
+SECRET_RE="$SECRET_RE"'|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}'
+SECRET_RE="$SECRET_RE"'|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}'
+SECRET_RE="$SECRET_RE"'|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+SECRET_RE="$SECRET_RE"'|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})'
 
 # ---------------------------------------------------------------- config ----
 # Env var of the same name in upper case wins over the stored value; then the
@@ -86,6 +96,7 @@ AUDIT_REPORT="$(cfgv audit_report enabled)"
 WEB_RESEARCH="$(cfgv web_research enabled)"
 STRANGER_POLICY="$(cfgv stranger_policy decline)"
 MEMORY_INFERENCE="$(cfgv memory_inference enabled)"
+ARTIFACT_SHARING="$(cfgv artifact_sharing never)"
 TASK_PREFIX="$(cfgv task_prefix T)"
 LEAD_DAYS="$(num "$(cfgv reminder_lead_days 1)")"
 STALE_DAYS="$(num "$(cfgv stale_task_days 14)")"
@@ -115,7 +126,7 @@ CONFIG_JSON="$(jq -n \
   --arg dt "$DUTY_TASKS" --arg db "$DUTY_BRIEFING" --arg da "$DUTY_ANSWERS" \
   --arg dd "$DUTY_DRAFTING" --arg brief "$DAILY_BRIEF" --arg review "$WEEKLY_REVIEW" \
   --arg audit "$AUDIT_REPORT" --arg web "$WEB_RESEARCH" --arg prefix "$TASK_PREFIX" \
-  --arg stranger "$STRANGER_POLICY" --arg meminf "$MEMORY_INFERENCE" \
+  --arg stranger "$STRANGER_POLICY" --arg meminf "$MEMORY_INFERENCE" --arg share "$ARTIFACT_SHARING" \
   --arg repo "$DEFINITION_REPO" --argjson lead "$LEAD_DAYS" --argjson stale "$STALE_DAYS" \
   --arg today "$TODAY" --arg week "$ISOWEEK" \
   '{timezone:$tz, today:$today, iso_week:$week, owner_member_id:$owner,
@@ -123,7 +134,7 @@ CONFIG_JSON="$(jq -n \
     channel_notifications:$notify, duty_tasks:$dt, duty_briefing:$db,
     duty_answers:$da, duty_drafting:$dd, daily_brief:$brief, weekly_review:$review,
     audit_report:$audit, web_research:$web, task_prefix:$prefix,
-    stranger_policy:$stranger, memory_inference:$meminf,
+    stranger_policy:$stranger, memory_inference:$meminf, artifact_sharing:$share,
     reminder_lead_days:$lead, stale_task_days:$stale, definition_repo:$repo}')"
 
 logs_json() { printf '%s\n' "${LOGS[@]:-}" | jq -R . | jq -s '[.[] | select(length>0)]'; }
@@ -458,13 +469,8 @@ mode_audit() {
   # --- credentials must never reach work/ (docs/privacy.md -> Secrets never land).
   # `-l` prints file names only, so a finding never carries the match itself into
   # this worklist, the audit report, or a log line.
-  local secret_re secret_hits
-  secret_re='(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
-  secret_re="$secret_re"'|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}'
-  secret_re="$secret_re"'|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}'
-  secret_re="$secret_re"'|-----BEGIN [A-Z ]*PRIVATE KEY-----'
-  secret_re="$secret_re"'|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})'
-  secret_hits="$(grep -rlE "$secret_re" "$WORK" 2>/dev/null | sed "s|^$WORK/||" | sort | tr '\n' ' ')"
+  local secret_hits
+  secret_hits="$(grep -rlE "$SECRET_RE" "$WORK" 2>/dev/null | sed "s|^$WORK/||" | sort | tr '\n' ' ')"
   if [ -n "$secret_hits" ]; then
     check secret_scan fail "credential-shaped string in: ${secret_hits% } — rewrite that field and have the owner rotate the credential (the backup history already has it)"
   else
@@ -492,6 +498,61 @@ mode_audit() {
     else
       check log_hygiene ok "no task title appears in a log file"
     fi
+  fi
+
+  # --- nothing goes past Private unless the owner asked (docs/privacy.md -> Artifacts).
+  # The ledger is the proof: a line past Private was written at artifact_sharing:
+  # confirm and names the direct session or an owner message INBOX.log holds as an
+  # artifact request answered or written. An artifact is judged by its latest line, so
+  # narrowing it or a later confirmation clears it; an unproven line from this week is
+  # reported even when a later line already changed it, so it surfaces once. Lines
+  # older than the inbound ledger's 90 days can no longer be proven either way.
+  local aline ln=0 an=0 abad="" anever="" aunread="" aid avis ashare aasked alast acur
+  local re_id=' artifact=([^ ]+)' re_vis=' visibility=([^ ]+)' re_asked=' asked=([^ ]+)'
+  local re_share=' sharing=(never|confirm)( |$)' re_day='^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+  if [ -f "$WORK/ARTIFACTS.log" ] && [ ! -r "$WORK/ARTIFACTS.log" ]; then
+    aunread=1
+  elif [ -f "$WORK/ARTIFACTS.log" ]; then
+    while IFS= read -r aline || [ -n "$aline" ]; do
+      ln=$((ln+1)); [ -n "$aline" ] || continue
+      an=$((an+1)); aid=""; avis=""; ashare=""; aasked=""
+      [[ $aline =~ $re_id ]] && aid="${BASH_REMATCH[1]}"
+      [[ $aline =~ $re_vis ]] && avis="${BASH_REMATCH[1]}"
+      [[ $aline =~ $re_share ]] && ashare="${BASH_REMATCH[1]}"
+      [[ $aline =~ $re_asked ]] && aasked="${BASH_REMATCH[1]}"
+      if ! [[ $aline =~ $re_day ]] || [ -z "$aid" ] || [ -z "$avis" ] || [ -z "$ashare" ] \
+         || [ -z "$aasked" ]; then
+        abad="${abad:+$abad, }line $ln unparseable"; continue
+      fi
+      [[ "${aline:0:10}" < "$cut90" ]] && continue
+      case "$avis" in ([Pp][Rr][Ii][Vv][Aa][Tt][Ee]|-) continue;; esac
+      alast="$(grep -nF " artifact=$aid " "$WORK/ARTIFACTS.log" 2>/dev/null | tail -1 | cut -d: -f1)"
+      acur=""
+      if [ "$alast" != "$ln" ]; then
+        [[ "${aline:0:10}" < "$since" ]] && continue
+        acur=" (since changed)"
+      fi
+      case "$aasked" in
+        (-) abad="${abad:+$abad, }$aid$acur"; continue;;
+        (direct) ;;
+        (*) grep -F " msg=$aasked " "$WORK/INBOX.log" 2>/dev/null | grep -F ' intent=artifact ' \
+              | grep -qE ' action=(answered|written)( |$)' \
+              || { abad="${abad:+$abad, }$aid$acur"; continue; };;
+      esac
+      if [ "$ashare" != confirm ]; then abad="${abad:+$abad, }$aid$acur sharing=never"
+      elif [ -z "$acur" ] && [ "$ARTIFACT_SHARING" != confirm ]; then
+        anever="${anever:+$anever, }$aid"
+      fi
+    done < "$WORK/ARTIFACTS.log"
+  fi
+  if [ -n "$aunread" ]; then
+    check artifact_visibility fail "work/ARTIFACTS.log exists but cannot be read — not measured, never a green"
+  elif [ -n "$abad" ]; then
+    check artifact_visibility fail "past Private without the owner's request at artifact_sharing: confirm: $abad — the owner confirms it or it goes back to Private; an unparseable line is rewritten to the docs/logging.md format"
+  elif [ -n "$anever" ]; then
+    check artifact_visibility warn "still past Private while artifact_sharing is $ARTIFACT_SHARING: $anever — narrow it, or the owner sets confirm"
+  else
+    check artifact_visibility ok "$an artifact ledger line(s), every artifact past Private on the owner's request"
   fi
 
   # --- failures[]: the week's error events, grouped into signatures for diagnosis
@@ -607,9 +668,78 @@ mode_audit() {
   logev info preflight "audit $n_ok ok / $n_warn warn / $n_fail fail"
 }
 
+# ------------------------------------------------------------ artifact ----
+# The gate before a page is published (docs/privacy.md -> Artifacts): its source is
+# one regular file under work/artifacts/; it loads nothing — not from elsewhere, not
+# from a file beside it — calls nothing, and carries no credential. Findings name a
+# rule and line numbers, never the text — the page is the owner's content. A grep is
+# a gate, not a sandbox: it catches the shapes a page fetches with, and the rule in
+# the doc covers the rest. Every scan reads the page as text (-a), so a stray NUL
+# byte cannot turn its matches into "Binary file matches".
+mode_artifact() {
+  local file="${1-}" findings='[]' dir art n ok=true
+  # An attribute value's opening quote (entity-encoded too), and a URL off the page:
+  # any scheme://, protocol-relative //, JS-escaped \/\/, or a numeric entity hiding one.
+  local q='(["'"'"'`]|&quot;|&apos;)?[[:space:]]*' remote='(([a-z][a-z0-9+.-]*:)?(//|\\/\\/)|&#)'
+  local attrs='(src|srcset|poster|data|background|action|formaction|ping)'
+  local tag='<([b-z]|a[^[:space:]>])[^>]*[[:space:]:]href'  # any element but <a>: its href loads
+  local inline='=["'"'"'](data:|blob:|#|javascript:|about:|([a-z][a-z0-9+.-]*:)?//)[^"'"'"']*$|=["'"'"']$'
+  local load_re call_re
+  load_re="$attrs[[:space:]]*=[[:space:]]*$q$remote|srcset[[:space:]]*=[[:space:]]*[\"'][^\"']*,[[:space:]]*$remote"
+  load_re="$load_re|$tag[[:space:]]*=[[:space:]]*$q$remote|url\([[:space:]]*$q$remote|image-set\([^)]*$remote"
+  load_re="$load_re|@import[[:space:]]+(url\()?$q$remote|setAttribute(NS)?\([^)]*$remote"
+  load_re="$load_re|http-equiv[[:space:]]*=[[:space:]]*${q}refresh|(from|import)[[:space:]]*\(?[[:space:]]*[\"'\`]$remote"
+  call_re='(^|[^[:alnum:]_$])fetch[[:space:]]*\(|sendBeacon[[:space:]]*\(|importScripts[[:space:]]*\('
+  call_re="$call_re"'|new[[:space:]]+(XMLHttpRequest|WebSocket|EventSource|RTCPeerConnection|WebTransport)([^[:alnum:]_$]|$)'
+  call_re="$call_re"'|window\.open[[:space:]]*\(|location\.(assign|replace)[[:space:]]*\('
+  call_re="$call_re"'|(^|[^[:alnum:]_$])location([[:space:]]*|\.(href|search|pathname|host|hostname|port|protocol)[[:space:]]*)=([^=]|$)'
+  finding() { # <rule> <comma-separated line numbers>
+    findings="$(printf '%s' "$findings" | jq -c --arg r "$1" --arg l "${2-}" \
+      '. + [{rule:$r, lines:($l | split(",") | map(select(test("^[0-9]+$")) | tonumber))}]')"
+  }
+  scan() { # <rule> <grep flags> <ERE> [<ERE dropping a match>] -> a finding with the
+    # line numbers left. A grep that cannot run (exit 2) is a finding too: it never
+    # passes as clean.
+    local out rc=0
+    out="$(grep "$2" ${4:+-o} -- "$3" "$file" 2>/dev/null)" || rc=$?
+    if [ "$rc" -eq 0 ] && [ -n "${4-}" ]; then
+      out="$(printf '%s\n' "$out" | grep -aviE -- "$4" 2>/dev/null)" || rc=$?
+    fi
+    case "$rc" in
+      (0) finding "$1" "$(printf '%s\n' "$out" | cut -d: -f1 | sort -un | tr '\n' ',')";;
+      (1) ;;
+      (*) finding "scan_failed:$1";;
+    esac
+  }
+  if [ -z "$file" ] || [ -d "$file" ] || [ ! -r "$file" ]; then
+    finding unreadable
+  else
+    dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd -P)"
+    art="$(cd "$WORK" 2>/dev/null && pwd -P)"
+    # a symlink would leave the real source where the audit's scans and a forget never look
+    case "${art:+$dir/}" in
+      ("$art/artifacts/"*) [ ! -L "$file" ] || finding location;;
+      (*) finding location;;
+    esac
+    scan remote_load -naiE "$load_re"
+    scan local_load -naiE "[[:space:]]$attrs=[\"'][^\"']*|$tag=[\"'][^\"']*" "$inline"
+    scan network_call -naE "$call_re"
+    scan secret -naE "$SECRET_RE"
+  fi
+  n="$(printf '%s' "$findings" | jq 'length')"
+  [ "$n" -eq 0 ] || ok=false
+  log "artifact: $n finding(s)"
+  jq -n --arg mode "$MODE" --argjson cfg "$CONFIG_JSON" --argjson ok "$ok" \
+     --argjson findings "$findings" --argjson logs "$(logs_json)" \
+     '{mode:$mode, ok:$ok, findings:$findings, config:$cfg, logs:$logs}'
+  if [ "$ok" = true ]; then logev info preflight "artifact ok"
+  else logev info preflight "artifact $n finding(s)"; fi
+}
+
 case "$MODE" in
   brief)  mode_brief ;;
   review) mode_review ;;
   audit)  mode_audit ;;
+  artifact) mode_artifact "${2-}" ;;
   *) fail_out "unknown mode: $MODE" ;;
 esac

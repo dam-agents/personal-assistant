@@ -36,8 +36,9 @@ because a scheduled run starts a fresh shell with no session exports.
 
 - **`dm_control`** — `answers` | `tasks` | `full`. The bound on the owner's own channel
   requests (`CLAUDE.md` → **Instruction sources & trust boundary**): `answers` mutates
-  nothing; `tasks` allows task operations and memory writes; `full` allows everything the
-  direct session can do — persona, duties, configuration, schedules, and definition PRs.
+  nothing; `tasks` allows task operations, memory writes and Private artifacts; `full`
+  allows everything the direct session can do — persona, duties, configuration,
+  schedules, definition PRs, and artifacts past Private where `artifact_sharing` allows it.
   Missing → `tasks`. It never widens what *other* people may do: anyone who is not
   `owner_member_id` is told nothing and obeyed in nothing, at every level
   ([privacy.md](privacy.md) → **Anyone who is not the owner**). Two changes are outside it
@@ -45,8 +46,8 @@ because a scheduled run starts a fresh shell with no session exports.
 
 ## Privacy
 
-Both bound what the agent keeps and says; the rules they sit inside are
-[privacy.md](privacy.md), which is not configurable.
+They bound what the agent keeps, says, and shares; the rules they sit inside are
+[privacy.md](privacy.md), which is not configurable — each key only tightens it.
 
 - **`stranger_policy`** — `decline` | `ignore`. What a message from anyone who is not
   `owner_member_id` gets: `decline` — one neutral line naming no one; `ignore` — no reply
@@ -56,6 +57,10 @@ Both bound what the agent keeps and says; the rules they sit inside are
   merely noticed (`## Observed` in `work/MEMORY.md`), or only what the owner stated.
   `disabled` leaves that section empty and skips the review's promotion step
   ([preferences.md](preferences.md)). Missing → `enabled`.
+- **`artifact_sharing`** — `never` | `confirm`. May the agent take an artifact past Private
+  ([privacy.md](privacy.md) → **Artifacts**): `never` — not even when asked, sharing stays
+  the owner's own action on the platform; `confirm` — only on the owner's explicit request
+  or confirmation of the read-back. Private pages need neither. Missing → `never`.
 
 ## Proactive messaging (all default to off)
 

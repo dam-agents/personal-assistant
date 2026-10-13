@@ -47,8 +47,8 @@ and retried next run — not a run failure, because the data is safe on `work/`.
 
 **The backup remote holds one person's tasks, notes, and preferences.** It must be a
 **private** repository owned by the same person or their organization, and it is the only
-place `work/` data ever leaves the agent besides the owner's own channel (`CLAUDE.md` →
-**Hard invariants**). Without `$GITHUB_REPO_WORK` the state lives on the volume alone —
+place `work/` data ever leaves the agent besides the owner's own channel and their artifact
+library (`CLAUDE.md` → **Hard invariants**). Without `$GITHUB_REPO_WORK` the state lives on the volume alone —
 durable across pod restarts, lost with the volume, and not reconstructable from anywhere:
 nothing here mirrors the owner's list into an external system.
 

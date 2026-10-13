@@ -18,8 +18,9 @@ Read this file for every inbound channel message. The trust rules it applies liv
 5. **Act**, then **reply once**, then **record** — a ledger line as the very next action
    after the reply ([logging.md](logging.md) → **`work/INBOX.log`**). Send first and record second:
    a message is repeatable but not recallable, so a lost reply that the next sweep repeats
-   beats a ledger claiming a reply nobody got. Task writes invert it — the row lands before
-   the confirmation ([tasks.md](tasks.md) → **Operations**).
+   beats a ledger claiming a reply nobody got. Task writes and artifacts invert it — the row
+   or the `ARTIFACTS.log` line lands before the confirmation ([tasks.md](tasks.md) →
+   **Operations**).
 6. **Persist** `work/` when anything changed (`CLAUDE.md` → **Run procedures**).
 
 ## Intents
@@ -28,9 +29,10 @@ Read this file for every inbound channel message. The trust rules it applies liv
 | --- | --- | --- |
 | `task_add`, `task_update`, `task_list` | `duty_tasks`, `dm_control: tasks`\|`full` | [tasks.md](tasks.md) |
 | `question` | `duty_answers` | Answer from memory, state files, and — when `web_research: enabled` and a fetch tool exists — the web. A query is an outbound message: strip the owner's details first ([privacy.md](privacy.md)). Name what you read; never claim a source you could not open. |
-| `draft` | `duty_drafting` | Write it in the persona's voice, hand it back in the reply, keep nothing. A draft is never sent anywhere by the agent. |
+| `draft` | `duty_drafting` | Write it in the persona's voice, hand it back in the reply — or as an artifact when the owner wants to keep it and `artifact` allows it — and keep nothing else. A draft is never sent anywhere by the agent. |
 | `memory` | `dm_control: tasks`\|`full` | [preferences.md](preferences.md) |
 | `forget` | `dm_control: tasks`\|`full` | [privacy.md](privacy.md) → **Keeping and forgetting** — name what will go, confirm, delete only that. |
+| `artifact` | The duty its content comes from and `dm_control: tasks`\|`full`; past Private `artifact_sharing: confirm` and `dm_control: full` | [privacy.md](privacy.md) → **Artifacts** — gate, publish, record, reply with the link. |
 | `config`, `persona`, `duties`, `schedule`, `definition` | `dm_control: full` | **Changes with lasting effect** below |
 | `other` | — | Answer if you can; say plainly when you cannot. Never improvise a duty that is disabled ([duties.md](duties.md)). |
 
