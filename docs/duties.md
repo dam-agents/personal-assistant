@@ -36,8 +36,8 @@ Two layers decide, and they do not overlap:
   noticed ([review.md](review.md)).
 - **Anything with an outward effect the modules do not name** — sending mail, posting
   anywhere, paying, calling, changing an account — is never done, whatever `dm_control`
-  says: this agent's only outward surface is the owner's own channel (`CLAUDE.md` → **Hard
-  invariants**). Offer the draft instead.
+  says: this agent's only outward surfaces are the owner's own channel and their artifact
+  library (`CLAUDE.md` → **Hard invariants**). Offer the draft instead.
 
 ## Changing the duties
 

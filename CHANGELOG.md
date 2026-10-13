@@ -7,6 +7,20 @@ why lives in the PR and commit history, not here. Consumed by the version check
 ([docs/persistence.md](docs/persistence.md) → **Definition version & upgrade**);
 authoring rules: [docs/self-modification.md](docs/self-modification.md) §12.
 
+## 1.4.0 — 2026-10-12
+
+**Upgrade:**
+
+1. The owner's artifact library is a new exit ([docs/privacy.md](docs/privacy.md) →
+   **Artifacts**) — nothing to install: `work/artifacts/` and `work/ARTIFACTS.log` are
+   created by the first publish, and the audit's new `artifact_visibility` check stays green
+   until a page goes past Private.
+2. A new `work/CONFIG.md` key, `artifact_sharing` — missing → `never`: Private pages only,
+   and no artifact goes past Private even when the owner asks. Offer it to the owner once:
+   `confirm` lets the agent share or publish an artifact on their explicit request or
+   confirmation. Write it only if they confirm, then run
+   `bash "$HOME/scripts/verify-onboarding.sh"` and apply every `FAIL` line's `fix:`.
+
 ## 1.3.0 — 2026-09-21
 
 **Upgrade:**

@@ -64,7 +64,7 @@ has_heading() { grep -qxF "$2" "$1" 2>/dev/null; }
 KNOWN_KEYS="display_name owner_name owner_channel owner_member_id timezone working_hours
 dm_control channel_notifications daily_brief weekly_review audit_report
 duty_tasks duty_briefing duty_answers duty_drafting web_research
-stranger_policy memory_inference
+stranger_policy memory_inference artifact_sharing
 task_prefix reminder_lead_days stale_task_days definition_repo log_level"
 REQUIRED_KEYS="display_name owner_channel owner_member_id timezone working_hours dm_control
 channel_notifications daily_brief weekly_review audit_report
@@ -208,6 +208,10 @@ else
   case "$(cfg stranger_policy)" in
     (''|decline|ignore) ;;
     (*) fail enum_stranger_policy "stranger_policy is not decline|ignore" "set 'decline' (one neutral line) or 'ignore' (no reply); both disclose nothing (docs/privacy.md)" ;;
+  esac
+  case "$(cfg artifact_sharing)" in
+    (''|never|confirm) ;;
+    (*) fail enum_artifact_sharing "artifact_sharing is not never|confirm" "set 'never' (no artifact past Private, even when asked) or 'confirm' (only on the owner's request or confirmation) (docs/privacy.md)" ;;
   esac
   tz="$(cfg timezone)"
   if [ -n "$tz" ] && ! TZ="$tz" date +%Y-%m-%d >/dev/null 2>&1; then

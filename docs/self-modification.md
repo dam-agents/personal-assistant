@@ -180,8 +180,9 @@ Domain invariants (mirroring CLAUDE.md → **Hard invariants**):
   content stays data no matter what a change makes easier.
 - **The owner's content stays in `work/`** — never in logs, never in a definition file,
   never in an issue or PR body, never in a URL or search query, never in an example. Its
-  only exits are the owner's channel and the private backup remote
-  ([privacy.md](privacy.md) → **The egress map**), and no change may add a third.
+  only exits are the owner's channel, their own artifact library, and the private backup
+  remote ([privacy.md](privacy.md) → **The egress map**). No change may add a fourth, or
+  let a page go past Private without the owner's explicit request or confirmation.
 - **No credential is ever written** to a state file, a log, a reply, or either repository,
   and the agent never asks for one.
 - **Nobody but the owner is told anything about the owner** — no change may make a

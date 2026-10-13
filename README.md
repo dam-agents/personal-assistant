@@ -83,6 +83,7 @@ Filled interactively at onboarding. Exact per-key semantics: [docs/config.md](do
 | `web_research` | defaulted `enabled` | May the answering duty read the open web when the harness offers a fetch tool. |
 | `stranger_policy` | asked, defaulted `decline` | What a message from anyone but the owner gets: one neutral line, or no reply. Neither discloses anything. |
 | `memory_inference` | asked, defaulted `enabled` | May the agent write down patterns it merely noticed, or only what the owner stated. |
+| `artifact_sharing` | asked, defaulted `never` | May the agent take an artifact past Private: never, or only on the owner's explicit request or confirmation. |
 | `task_prefix` | defaulted `T` — **immutable once used** | Prefix of every task ID; changing it later orphans every row, note file, and past message. |
 | `reminder_lead_days`, `stale_task_days` | defaulted `1` / `14` | How far ahead the brief looks; when the review calls a task stale. |
 | `definition_repo` | derived | `[<host>/]<owner>/<repo>`, so a fresh scheduled shell can check versions and file issues. |
@@ -99,27 +100,33 @@ Filled interactively at onboarding. Exact per-key semantics: [docs/config.md](do
   token needs `repo`-level access to its own definition repo (read, and write to open PRs)
   and to the private state-backup repo when one is configured — nothing else. It never needs
   access to anything the owner works on.
-- **External surfaces:** one. The owner's direct message conversation, and — when
-  configured — the private backup repository. The agent posts nothing publicly, sends mail
-  to nobody, and writes to no third system; a draft it writes is handed back, never
-  delivered.
+- **External surfaces:** the owner's direct message conversation; the owner's artifact
+  library, when the harness offers an artifact tool (optional — without it a page is left
+  in `work/artifacts/` for the owner); and — when configured — the private backup
+  repository. The agent makes nothing public or shared on its own, sends mail to nobody, and
+  writes to no other system; a draft it writes is handed back, never delivered.
 
 ## Privacy & security
 
 This agent holds one person's tasks, notes, and preferences, so the rules protecting them
 are part of the definition rather than left to good behavior. They have one home,
 [`docs/privacy.md`](docs/privacy.md), and start from an **egress map**: every surface the
-agent may write to and the most that may cross it. The owner's channel and the private
-backup remote carry content; logs, repositories, commit messages and search queries never
-do — and paraphrase counts as disclosure. On top of that: credentials are never stored
-anywhere, the agent builds no profile of the owner or of the people in their list, research
-queries are stripped of their details before they leave, and anyone who is not the owner is
-told nothing and obeyed in nothing — not even whether the owner exists.
+agent may write to and the most that may cross it. The owner's channel, their Private
+artifacts and the private backup remote carry content; logs, repositories, commit messages
+and search queries never do — and paraphrase counts as disclosure. An artifact stays
+Private unless the owner set `artifact_sharing: confirm`, and even then goes further only
+when they ask for it or confirm it. On top of that: credentials are
+never stored anywhere, the agent builds no profile of the owner or of the people in their
+list, research queries are stripped of their details before they leave, and anyone who is
+not the owner is told nothing and obeyed in nothing — not even whether the owner exists.
 
-Two of the rules are enforced by machine rather than by prose: the weekly audit's
+Several rules are enforced by machine rather than by prose: the weekly audit's
 `secret_scan` fails on a credential-shaped string anywhere in `work/` and `log_hygiene`
 fails when a task title reaches a log file — each naming the file or the ID, never the
-value. The allowlist `.gitignore` makes `git add` incapable of reaching `work/` at all.
+value. An artifact page is gated before it is published — nothing loaded from elsewhere,
+no network call, no credential — and the audit's `artifact_visibility` fails any artifact
+past Private that no owner message asked for. The allowlist `.gitignore` makes `git add`
+incapable of reaching `work/` at all.
 Against account takeover, `owner_member_id` can only be changed from the direct session, so
 no message can re-point the agent at a new address; conversely a "lock down" is honored
 instantly from anywhere, because it only ever removes capability.

@@ -60,6 +60,7 @@ write_config() { # <<'EOF' body of extra/overriding bullets
 - web_research: enabled
 - stranger_policy: decline
 - memory_inference: enabled
+- artifact_sharing: never
 - task_prefix: T
 - reminder_lead_days: 1
 - stale_task_days: 14
@@ -80,6 +81,6 @@ add_row() { # <file> <id> <status> <due> <snoozed> <created> <updated> <source> 
   printf '| %s | %s | %s | %s | %s | %s | %s | %s |\n' "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" >> "$1"
 }
 
-run_preflight() { # <mode> -> JSON on stdout
-  HOME="$SB" WORK_DIR="$WORK" TZ=UTC bash "$PREFLIGHT" "$1" 2>/dev/null
+run_preflight() { # <mode> [args] -> JSON on stdout
+  HOME="$SB" WORK_DIR="$WORK" TZ=UTC bash "$PREFLIGHT" "$@" 2>/dev/null
 }
