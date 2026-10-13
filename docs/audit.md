@@ -29,7 +29,7 @@ Do not recompute them by hand; read them.
 | `cadence_brief`, `cadence_review`, `cadence_audit` | An enabled run type has not logged a run within its expected window. |
 | `secret_scan` | A credential-shaped string appears anywhere under `work/`. Names the file, never the match ([privacy.md](privacy.md) → **Secrets never land**). |
 | `log_hygiene` | A live task title appears verbatim in a log file — the owner's content reached a log ([logging.md](logging.md)). Names the task ID, never the title. |
-| `artifact_visibility` | A `work/ARTIFACTS.log` line from the last 90 days is past Private with `asked=-`, or names a message `INBOX.log` does not hold as handled (missing or `declined`); an unparseable line fails too ([privacy.md](privacy.md) → **Artifacts**). At `artifact_sharing: never` a proven line past Private is a `warn` — the owner's word, but past their own setting. Names the artifact ID. |
+| `artifact_visibility` | An artifact's latest `work/ARTIFACTS.log` line from the last 90 days — or any line from this week — is past Private and not proven: `asked=-`, a message `INBOX.log` does not hold as an `intent=artifact` request `answered` or `written`, or `sharing=never`; an unparseable line fails too ([privacy.md](privacy.md) → **Artifacts**). Shared at `confirm` and still past Private after the owner set `never` is a `warn`. Names the artifact ID. |
 | `errors` | `ERROR:` lines in `work/*.log`. No log file at all is `warn` — not measured, never a green. |
 | `retention` | Housekeeping report: events files older than 14 days and `INBOX.log` lines older than 90 days removed. |
 | `memory_bounds` | `## Observed` over its cap ([preferences.md](preferences.md)). |
@@ -62,8 +62,10 @@ declined. Task counters come from the review's worklist, not from here.
    Then the egress question the deterministic checks cannot ask: did anything the owner
    wrote reach a surface [privacy.md](privacy.md) → **The egress map** does not allow — a
    research query, a commit or issue, a reply to someone else? Where the harness can list
-   artifacts, compare their visibility with `work/ARTIFACTS.log`: one past Private with no
-   line there reached the outside unrecorded — a `fail`.
+   artifacts, compare them with `work/ARTIFACTS.log`: one the ledger does not hold at all
+   reached the outside unrecorded — a `fail`; one it holds as Private that now reaches
+   further was shared on the platform, which is the owner's own action — name it in the
+   report so they recognize it, never a finding.
 4. **The double-send window** — two `sent=1` brief lines inside one owner-local day, or two
    review lines in one ISO week. That is the crash window between the send and the log
    append; one occurrence is expected behavior of send-then-record, a pattern is a bug.

@@ -36,9 +36,9 @@ because a scheduled run starts a fresh shell with no session exports.
 
 - **`dm_control`** — `answers` | `tasks` | `full`. The bound on the owner's own channel
   requests (`CLAUDE.md` → **Instruction sources & trust boundary**): `answers` mutates
-  nothing; `tasks` allows task operations and memory writes; `full` allows everything the
-  direct session can do — persona, duties, configuration, schedules, definition PRs, and
-  artifacts past Private where `artifact_sharing` allows it.
+  nothing; `tasks` allows task operations, memory writes and Private artifacts; `full`
+  allows everything the direct session can do — persona, duties, configuration,
+  schedules, definition PRs, and artifacts past Private where `artifact_sharing` allows it.
   Missing → `tasks`. It never widens what *other* people may do: anyone who is not
   `owner_member_id` is told nothing and obeyed in nothing, at every level
   ([privacy.md](privacy.md) → **Anyone who is not the owner**). Two changes are outside it

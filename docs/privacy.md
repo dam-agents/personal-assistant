@@ -117,7 +117,8 @@ be shared.
 
 - **Private is always fine.** A page in the owner's own library, visible to them alone, may
   carry what their channel may — asked for, or because a page answers better than a
-  message. Never into anyone else's library.
+  message. Never into anyone else's library. On the channel it is a write:
+  `dm_control: tasks`|`full`.
 - **Past Private is the owner's call, every time.** Shared, by link, organization-wide or
   public: only the artifact the owner named, and only when their own words asked for that
   reach or confirmed your read-back of it — the artifact, old → new visibility, who will see
@@ -132,16 +133,19 @@ be shared.
 - **Narrowing is honored at once** — back to Private, or unpublished — since it only removes
   reach. Deleting one is a `forget` (**Keeping and forgetting**): the platform copy and its
   source, per item.
-- **Self-contained.** Everything the page shows is inside the file: no script, style, font,
-  image or frame loaded from anywhere, no network call, no form posting out, no runtime
-  capability that sends data on. A link the owner clicks may stay; one built from their
-  data may not. Untrusted content goes in as escaped text, never as markup or script.
+- **Self-contained.** Everything the page shows is inside one file: no script, style, font,
+  image or frame loaded from anywhere — a file beside it included — no network call, no
+  form posting out, no runtime capability that sends data on. A link the owner clicks may
+  stay; one built from their data may not. Untrusted content goes in as escaped text, never
+  as markup or script.
 - **Gate, publish, record, reply.** Write the page under `work/artifacts/`, run
   `bash "$HOME/scripts/preflight.sh" artifact <file>`, and publish only on `ok: true` — a
-  finding is fixed in the page, never waived. After each publish or visibility change append
-  its `work/ARTIFACTS.log` line ([logging.md](logging.md)), then reply with the link and the
-  visibility. The audit's `artifact_visibility` fails a line past Private that no owner
-  message asked for ([audit.md](audit.md)).
+  finding is fixed in the page, never waived: your own code is rewritten; a match in the
+  owner's text gets one character as an HTML entity (`(` → `&#40;`), which renders the
+  same. After each publish or visibility change append its `work/ARTIFACTS.log` line
+  ([logging.md](logging.md)), then reply with the link and the visibility. The audit's
+  `artifact_visibility` fails an artifact past Private that no owner request proves
+  ([audit.md](audit.md)).
 - **One page, one history.** Refreshing a page publishes a new version of the same artifact,
   never a second one beside it; once the platform gave it an ID, its source is
   `work/artifacts/<artifact-id>.html`.

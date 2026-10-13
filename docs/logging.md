@@ -76,13 +76,16 @@ One line per publish, visibility change, or deletion, appended once it landed an
 the reply ([privacy.md](privacy.md) → **Artifacts**); created by the first one:
 
 ```
-<ISO-UTC> artifact=<platform-id> action=<published|visibility|deleted> visibility=<private|<scope>|-> asked=<message-id|direct|->
+<ISO-UTC> artifact=<platform-id> action=<published|visibility|deleted> visibility=<private|<scope>|-> sharing=<never|confirm> asked=<message-id|direct|->
 ```
 
-`published` is a new artifact or a new version of one; `visibility` is the reach after the
-action, in the platform's word for it (`-` once deleted). `asked` is the owner's message that asked for or confirmed it, `direct` for the
-direct session, `-` when nobody had to — never the page's title. Never trimmed: it is the
-record of what exists outside `work/`, and what the audit's `artifact_visibility` reads.
+`published` is a new artifact or a new version of one. `visibility` is the reach after the
+action: `private` when only the owner sees it, else the platform's word for the wider
+reach, lowercase; `-` once deleted. `sharing` is `artifact_sharing` at the time of the
+write. `asked` is the owner's `intent=artifact` message that asked for or confirmed it,
+`direct` for the direct session, `-` when nobody had to — never the page's title. Never
+trimmed: it is the record of what exists outside `work/`, and what the audit's
+`artifact_visibility` reads, latest line per artifact.
 
 ## Diagnosing a failure
 
